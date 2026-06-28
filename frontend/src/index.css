@@ -1,0 +1,111 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  * {
+    box-sizing: border-box;
+  }
+
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    @apply bg-background text-foreground font-sans antialiased;
+    background-color: #0a0b0f;
+    color: #f3f4f6;
+  }
+
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: #111318;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: #252932;
+    border-radius: 3px;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: #374151;
+  }
+}
+
+@layer components {
+  .card {
+    @apply bg-surface border border-surface-border rounded-2xl shadow-card;
+  }
+
+  .card-elevated {
+    @apply bg-surface-elevated border border-surface-border rounded-2xl shadow-card;
+  }
+
+  .btn-primary {
+    @apply bg-gradient-accent text-white px-5 py-2.5 rounded-xl font-semibold text-sm
+           hover:opacity-90 active:scale-95 transition-all duration-200 shadow-glow;
+  }
+
+  .btn-ghost {
+    @apply bg-transparent text-foreground-muted px-4 py-2 rounded-xl font-medium text-sm
+           hover:bg-surface-elevated hover:text-foreground transition-all duration-200;
+  }
+
+  .badge {
+    @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold;
+  }
+
+  .badge-success {
+    @apply badge bg-success/10 text-success border border-success/20;
+  }
+
+  .badge-danger {
+    @apply badge bg-danger/10 text-danger border border-danger/20;
+  }
+
+  .badge-warning {
+    @apply badge bg-warning/10 text-warning border border-warning/20;
+  }
+
+  .badge-neutral {
+    @apply badge bg-surface-elevated text-foreground-muted border border-surface-border;
+  }
+
+  .skeleton {
+    @apply bg-surface-elevated rounded-xl animate-pulse;
+    background: linear-gradient(90deg, #1a1d24 25%, #252932 50%, #1a1d24 75%);
+    background-size: 200% 100%;
+    animation: shimmer 1.5s infinite;
+  }
+
+  .glass {
+    @apply backdrop-blur-sm border border-white/5;
+    background: rgba(255, 255, 255, 0.03);
+  }
+
+  .stat-card {
+    @apply card p-6 flex flex-col gap-3 hover:border-accent/30 transition-all duration-300
+           hover:shadow-glow cursor-pointer relative overflow-hidden;
+  }
+
+  .group-card {
+    @apply card p-5 hover:border-accent/30 hover:shadow-glow transition-all duration-300
+           cursor-pointer flex flex-col gap-4;
+  }
+
+  .expense-row {
+    @apply flex items-center gap-4 p-4 rounded-xl hover:bg-surface-elevated
+           transition-all duration-200 cursor-pointer;
+  }
+
+  .activity-item {
+    @apply flex items-start gap-3 p-3 rounded-xl hover:bg-surface-elevated
+           transition-all duration-200;
+  }
+}
