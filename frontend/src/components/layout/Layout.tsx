@@ -1,7 +1,8 @@
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import { Avatar } from '@/components/ui/Avatar';
-import { MOCK_USER } from '@/hooks/useDashboardData';
+import { useAuthStore } from '@/store/useAuthStore';
+import { useLogoutMutation } from '@/hooks/useAuthQueries';
 
 const navItems = [
   { to: '/dashboard', icon: '🏠', label: 'Dashboard' },
@@ -12,6 +13,16 @@ const navItems = [
 
 export default function Layout() {
   const navigate = useNavigate();
+  const user = useAuthStore((state) => state.user);
+  const logoutMutation = useLogoutMutation();
+
+  const handleLogout = async () => {
+    await logoutMutation.mutateAsync();
+    navigate('/login');
+  };
+
+  const username = user?.name || 'Guest User';
+  const email = user?.email || '';
 
   return (
     <div className="min-h-screen bg-background flex">
@@ -54,13 +65,13 @@ export default function Layout() {
         {/* User */}
         <div className="p-4 border-t border-surface-border">
           <div className="flex items-center gap-3 p-3 rounded-xl hover:bg-surface-elevated transition-colors cursor-pointer">
-            <Avatar name={MOCK_USER.name} size="sm" />
+            <Avatar name={username} size="sm" />
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-semibold text-foreground truncate">{MOCK_USER.name}</p>
-              <p className="text-xs text-foreground-subtle truncate">{MOCK_USER.email}</p>
+              <p className="text-sm font-semibold text-foreground truncate">{username}</p>
+              <p className="text-xs text-foreground-subtle truncate">{email}</p>
             </div>
             <button
-              onClick={() => navigate('/login')}
+              onClick={handleLogout}
               className="text-foreground-subtle hover:text-danger transition-colors text-sm"
               title="Sign out"
             >
@@ -80,7 +91,7 @@ export default function Layout() {
             </div>
             <h1 className="text-base font-bold text-foreground">SplitWise</h1>
           </div>
-          <Avatar name={MOCK_USER.name} size="sm" />
+          <Avatar name={username} size="sm" />
         </header>
 
         {/* Mobile Bottom Nav */}
