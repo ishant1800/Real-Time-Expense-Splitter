@@ -5,6 +5,7 @@ import { z } from 'zod';
 import { Link, useNavigate } from 'react-router-dom';
 import { useRegister } from '../hooks/useAuthQueries';
 import { cn } from '../lib/utils';
+import { GoogleSignInButton } from '../components/auth/GoogleSignInButton';
 
 const registerSchema = z
   .object({
@@ -136,6 +137,14 @@ export default function Register() {
             {registerMutation.isPending ? 'Registering...' : 'Create Account'}
           </button>
         </form>
+
+        <div className="relative flex py-2 items-center">
+          <div className="flex-grow border-t border-surface-border" />
+          <span className="flex-shrink mx-4 text-foreground-subtle text-xs uppercase">Or</span>
+          <div className="flex-grow border-t border-surface-border" />
+        </div>
+
+        <GoogleSignInButton onError={(err) => setErrorMsg(err)} />
 
         <p className="text-center text-sm text-foreground-subtle pt-2">
           Already have an account?{' '}

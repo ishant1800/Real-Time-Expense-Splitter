@@ -5,6 +5,7 @@ import { z } from 'zod';
 import { Link, useNavigate } from 'react-router-dom';
 import { useLogin } from '../hooks/useAuthQueries';
 import { cn } from '../lib/utils';
+import { GoogleSignInButton } from '../components/auth/GoogleSignInButton';
 
 const loginSchema = z.object({
   email: z.string().min(1, 'Email is required').email('Enter a valid email address'),
@@ -106,6 +107,14 @@ export default function Login() {
             {loginMutation.isPending ? 'Signing In...' : 'Sign In'}
           </button>
         </form>
+
+        <div className="relative flex py-2 items-center">
+          <div className="flex-grow border-t border-surface-border" />
+          <span className="flex-shrink mx-4 text-foreground-subtle text-xs uppercase">Or</span>
+          <div className="flex-grow border-t border-surface-border" />
+        </div>
+
+        <GoogleSignInButton onError={(err) => setErrorMsg(err)} />
 
         <p className="text-center text-sm text-foreground-subtle pt-2">
           Don't have an account?{' '}
