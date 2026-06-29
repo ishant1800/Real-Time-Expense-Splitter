@@ -1,4 +1,3 @@
-import { Card, CardHeader } from '@/components/ui/Card';
 import { Avatar } from '@/components/ui/Avatar';
 import { formatCurrency } from '@/lib/utils';
 import type { NetBalance } from '@/types';
@@ -9,74 +8,60 @@ interface BalancePanelProps {
 }
 
 export function BalancePanel({ balances, onSettle }: BalancePanelProps) {
-  const owed = balances.filter(b => b.balance > 0);
-  const owes = balances.filter(b => b.balance < 0);
-
   return (
-    <Card className="p-5">
-      <div className="mb-5">
-        <CardHeader title="Balance Overview" subtitle="Net across all groups" icon="⚖️" />
+    <div className="bg-[#111] border border-white/6 rounded-xl p-6 text-left space-y-5">
+      {/* Header */}
+      <div className="pb-2">
+        <h2 className="font-heading text-lg font-bold text-white">Net Balances</h2>
+        <p className="text-[10px] text-gray-500 uppercase tracking-widest font-semibold mt-0.5">
+          outstanding balances across all groups
+        </p>
       </div>
 
-      {/* You are owed */}
-      {owed.length > 0 && (
-        <div className="mb-4">
-          <p className="text-xs font-semibold text-foreground-subtle uppercase tracking-wider mb-2">
-            They Owe You
-          </p>
-          <div className="space-y-2">
-            {owed.map((b) => (
-              <div key={b.userId} className="flex items-center gap-3 p-2.5 rounded-xl hover:bg-surface-elevated transition-colors">
-                <Avatar name={b.name} src={b.avatarUrl} size="sm" />
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-foreground truncate">{b.name}</p>
-                </div>
-                <div className="text-right">
-                  <p className="text-sm font-bold text-success">+{formatCurrency(b.balance)}</p>
-                </div>
-              </div>
-            ))}
-          </div>
+      {balances.length === 0 ? (
+        <div className="py-8 text-center text-gray-500 text-xs">
+          🎉 All settled up! No outstanding balances.
         </div>
-      )}
+      ) : (
+        <div className="space-y-3.5">
+          {balances.map((b) => {
+            const isPositive = b.balance > 0;
 
-      {/* You owe */}
-      {owes.length > 0 && (
-        <div>
-          <p className="text-xs font-semibold text-foreground-subtle uppercase tracking-wider mb-2">
-            You Owe
-          </p>
-          <div className="space-y-2">
-            {owes.map((b) => (
-              <div key={b.userId} className="flex items-center gap-3 p-2.5 rounded-xl hover:bg-surface-elevated transition-colors">
-                <Avatar name={b.name} src={b.avatarUrl} size="sm" />
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-foreground truncate">{b.name}</p>
+            return (
+              <div
+                key={b.userId}
+                className="flex items-center justify-between gap-4 p-3 bg-white/[0.02] border border-white/5 rounded-xl hover:bg-white/[0.04] transition-colors"
+              >
+                {/* Avatar and name */}
+                <div className="flex items-center gap-3">
+                  <Avatar name={b.name} src={b.avatarUrl} size="sm" />
+                  <div>
+                    <p className="text-xs font-bold text-white leading-snug">{b.name}</p>
+                    <p className="text-[9px] text-gray-500 uppercase tracking-wider font-semibold">
+                      {isPositive ? 'Owes you' : 'You owe'}
+                    </p>
+                  </div>
                 </div>
-                <div className="text-right">
-                  <p className="text-sm font-bold text-danger">{formatCurrency(b.balance)}</p>
+
+                {/* Amount and Settle actions */}
+                <div className="text-right space-y-1">
+                  <p className={`text-sm font-extrabold leading-none ${isPositive ? 'text-[#10b981]' : 'text-rose-500'}`}>
+                    {isPositive ? '+' : ''}{formatCurrency(b.balance)}
+                  </p>
                   {onSettle && (
                     <button
                       onClick={onSettle}
-                      className="text-xs text-accent-light hover:underline mt-0.5"
+                      className="text-[9px] uppercase tracking-wider font-bold text-[#10b981] hover:text-[#0ea572] transition"
                     >
-                      Settle up
+                      Settle →
                     </button>
                   )}
                 </div>
               </div>
-            ))}
-          </div>
+            );
+          })}
         </div>
       )}
-
-      {owed.length === 0 && owes.length === 0 && (
-        <div className="py-8 text-center">
-          <p className="text-4xl mb-2">🎉</p>
-          <p className="text-sm font-medium text-foreground">All settled up!</p>
-          <p className="text-xs text-foreground-subtle mt-1">No outstanding balances.</p>
-        </div>
-      )}
-    </Card>
+    </div>
   );
 }

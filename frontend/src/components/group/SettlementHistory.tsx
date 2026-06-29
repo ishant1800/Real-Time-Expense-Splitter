@@ -1,6 +1,6 @@
-import { Card, CardHeader } from '@/components/ui/Card';
+import { motion, Variants } from 'framer-motion';
 import { Avatar } from '@/components/ui/Avatar';
-import { EmptyState } from '@/components/ui/EmptyState';
+import { Badge } from '@/components/ui/Badge';
 import { formatCurrency, formatDate } from '@/lib/utils';
 import type { Settlement } from '@/types';
 
@@ -14,84 +14,104 @@ export function SettlementHistory({ settlements, currentUserId }: SettlementHist
     (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
   );
 
+  const containerVariants: Variants = {
+    hidden: {},
+    visible: {
+      transition: { staggerChildren: 0.05 },
+    },
+  };
+
+  const itemVariants: Variants = {
+    hidden: { opacity: 0, y: 15 },
+    visible: {
+      opacity: 1,
+      y: 0,
+      transition: { type: 'spring', stiffness: 220, damping: 20 },
+    },
+  };
+
   if (settlements.length === 0) {
     return (
-      <Card className="p-5">
-        <CardHeader title="Settlement History" icon="✅" className="mb-4" />
-        <EmptyState
-          icon="🤝"
-          title="No settlements yet"
-          description="Once members settle up, history will appear here."
-        />
-      </Card>
+      <div className="bg-[#111] border border-white/6 rounded-xl p-16 text-center space-y-2 select-none">
+        <span className="text-4xl">🤝</span>
+        <h3 className="font-heading text-base font-bold text-white mt-2">No settlements yet</h3>
+        <p className="text-gray-500 text-xs">Once members settle up, history will appear here.</p>
+      </div>
     );
   }
 
   return (
-    <Card className="p-5">
-      <div className="flex items-center justify-between mb-4">
-        <CardHeader title="Settlement History" subtitle={`${settlements.length} settlements`} icon="✅" />
+    <div className="space-y-4 text-left">
+      <div className="pb-2 select-none">
+        <h2 className="font-heading text-lg font-bold text-white">Settlement History</h2>
+        <p className="text-[10px] text-gray-500 uppercase tracking-widest font-semibold mt-0.5">
+          {settlements.length} total settlements recorded
+        </p>
       </div>
 
-      <div className="space-y-2">
+      <motion.div
+        variants={containerVariants}
+        initial="hidden"
+        animate="visible"
+        className="space-y-3"
+      >
         {sorted.map((s) => {
           const isFromMe = s.from._id === currentUserId;
           const isToMe = s.to._id === currentUserId;
 
-          let label: React.ReactNode;
-          if (isFromMe) {
-            label = (
-              <span className="text-xs text-foreground-muted">
-                You paid <strong className="text-foreground">{s.to.name}</strong>
-              </span>
-            );
-          } else if (isToMe) {
-            label = (
-              <span className="text-xs text-foreground-muted">
-                <strong className="text-foreground">{s.from.name}</strong> paid you
-              </span>
-            );
-          } else {
-            label = (
-              <span className="text-xs text-foreground-muted">
-                <strong className="text-foreground">{s.from.name}</strong> paid{' '}
-                <strong className="text-foreground">{s.to.name}</strong>
-              </span>
-            );
-          }
-
           return (
-            <div
+            <motion.div
               key={s._id}
-              className="flex items-center gap-3 p-3.5 rounded-xl hover:bg-surface-elevated transition-colors"
+              variants={itemVariants}
+              whileHover={{ y: -1, borderColor: 'rgba(16, 185, 129, 0.25)' }}
+              className="bg-[#111] border border-white/6 rounded-xl p-5 flex items-center justify-between gap-4 transition-all duration-300 hover:shadow-[0_15px_30px_rgba(16,185,129,0.02)]"
             >
-              {/* Arrow indicator */}
-              <div className="w-9 h-9 rounded-xl bg-success/10 border border-success/20 flex items-center justify-center text-base shrink-0">
-                ✅
-              </div>
-
-              {/* Avatars + label */}
-              <div className="flex items-center gap-2 flex-1 min-w-0">
-                <div className="flex items-center -space-x-2 shrink-0">
+              {/* Avatars Flow */}
+              <div className="flex items-center gap-4.5">
+                {/* From User */}
+                <div className="flex items-center gap-2">
                   <Avatar name={s.from.name} src={s.from.avatarUrl} size="xs" />
-                  <Avatar name={s.to.name} src={s.to.avatarUrl} size="xs" />
+                  <div className="min-w-0">
+                    <span className="text-xs font-bold text-white truncate max-w-[80px] block">
+                      {isFromMe ? 'You' : s.from.name.split(' ')[0]}
+                    </span>
+                    <span className="text-[8px] uppercase tracking-wider text-gray-500 font-bold block">Sent</span>
+                  </div>
                 </div>
-                <div className="min-w-0">
-                  {label}
-                  <p className="text-xs text-foreground-subtle mt-0.5">{formatDate(s.createdAt)}</p>
+
+                {/* Arrow */}
+                <span className="text-gray-500 text-sm select-none">➔</span>
+
+                {/* To User */}
+                <div className="flex items-center gap-2">
+                  <Avatar name={s.to.name} src={s.to.avatarUrl} size="xs" />
+                  <div className="min-w-0">
+                    <span className="text-xs font-bold text-white truncate max-w-[80px] block">
+                      {isToMe ? 'You' : s.to.name.split(' ')[0]}
+                    </span>
+                    <span className="text-[8px] uppercase tracking-wider text-gray-500 font-bold block">Received</span>
+                  </div>
                 </div>
               </div>
 
-              {/* Amount */}
-              <div className="text-right shrink-0">
-                <p className={`text-sm font-bold ${isToMe ? 'text-success' : isFromMe ? 'text-danger' : 'text-foreground'}`}>
-                  {isToMe ? '+' : isFromMe ? '-' : ''}{formatCurrency(s.amount)}
-                </p>
+              {/* Middle Date/Time */}
+              <div className="hidden sm:block text-left">
+                <span className="text-[10px] text-gray-400 font-medium">
+                  {formatDate(s.createdAt)}
+                </span>
               </div>
-            </div>
+
+              {/* Right: Amount & settled status */}
+              <div className="flex items-center gap-4 shrink-0">
+                <span className="text-sm font-extrabold text-[#10b981]">
+                  {formatCurrency(s.amount)}
+                </span>
+                <Badge variant="success">Settled</Badge>
+              </div>
+            </motion.div>
           );
         })}
-      </div>
-    </Card>
+      </motion.div>
+    </div>
   );
 }

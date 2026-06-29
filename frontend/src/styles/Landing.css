@@ -1,0 +1,127 @@
+/* Landing Page Custom CSS Rules */
+
+/* Typography bindings */
+.font-heading {
+  font-family: 'Syne', sans-serif;
+  font-weight: 800;
+}
+
+.font-body {
+  font-family: 'Inter', sans-serif;
+}
+
+/* Background & main theme styles */
+.landing-container {
+  background-color: #0a0a0a;
+  color: #f5f5f5;
+  font-family: 'Inter', sans-serif;
+  overflow-x: hidden;
+  position: relative;
+}
+
+/* Dot grid background texture */
+.bg-dot-grid {
+  background-image: radial-gradient(circle, rgba(255, 255, 255, 0.035) 1px, transparent 1px);
+  background-size: 28px 28px;
+}
+
+/* Blur orbs */
+.blur-orb-emerald-1 {
+  background: radial-gradient(circle, rgba(16, 185, 129, 0.07) 0%, rgba(16, 185, 129, 0) 70%);
+}
+.blur-orb-emerald-2 {
+  background: radial-gradient(circle, rgba(16, 185, 129, 0.04) 0%, rgba(16, 185, 129, 0) 70%);
+}
+
+/* Pulse Animation for main CTA */
+@keyframes emerald-pulse {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.4);
+  }
+  50% {
+    box-shadow: 0 0 0 12px rgba(16, 185, 129, 0);
+  }
+}
+
+.animate-pulse-emerald {
+  animation: emerald-pulse 2s infinite;
+}
+
+/* Custom scrollbar matching emerald theme */
+.landing-container::-webkit-scrollbar {
+  width: 8px;
+}
+.landing-container::-webkit-scrollbar-track {
+  background: #0a0a0a;
+}
+.landing-container::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+}
+.landing-container::-webkit-scrollbar-thumb:hover {
+  background: #10b981;
+}
+
+/* Testimonials Loop CSS Keyframe */
+@keyframes scroll-left {
+  0% {
+    transform: translateX(0);
+  }
+  100% {
+    transform: translateX(-50%);
+  }
+}
+
+.scroll-track {
+  display: flex;
+  width: max-content;
+  animation: scroll-left 35s linear infinite;
+}
+
+.scroll-track:hover {
+  animation-play-state: paused;
+}
+
+/* Card custom styles */
+.premium-card {
+  background-color: #111111;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 12px;
+  transition: border-color 0.3s, box-shadow 0.3s;
+}
+
+.premium-card:hover {
+  border-color: rgba(16, 185, 129, 0.3);
+  box-shadow: 0 20px 40px rgba(16, 185, 129, 0.08);
+}
+
+/* Hide default cursor on desktop when custom cursor is active */
+.custom-cursor-active,
+.custom-cursor-active * {
+  cursor: none !important;
+}
+
+/* Sparkline path animation */
+.sparkline-path {
+  stroke-dasharray: 100;
+  stroke-dashoffset: 100;
+  animation: draw-sparkline 2.5s ease-out forwards;
+}
+
+@keyframes draw-sparkline {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+/* Accessiblity options */
+@media (prefers-reduced-motion: reduce) {
+  .scroll-track,
+  .animate-pulse-emerald,
+  .sparkline-path {
+    animation: none !important;
+    transition: none !important;
+    transform: none !important;
+    stroke-dashoffset: 0 !important;
+  }
+}

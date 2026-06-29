@@ -6,7 +6,6 @@ import { RecentExpenses } from '@/components/dashboard/RecentExpenses';
 import { ActivityFeed } from '@/components/dashboard/ActivityFeed';
 import { SpendingSummary } from '@/components/dashboard/SpendingSummary';
 import { BalancePanel } from '@/components/dashboard/BalancePanel';
-import { Avatar } from '@/components/ui/Avatar';
 import { AddExpenseModal } from '@/components/group/AddExpenseModal';
 import { SettleModal } from '@/components/group/SettleModal';
 import { CreateGroupModal } from '@/components/group/CreateGroupModal';
@@ -16,10 +15,14 @@ import { expenseApi } from '@/services/groupApi';
 import type { CreateExpensePayload } from '@/services/groupApi';
 import { useToastStore } from '@/store/useToastStore';
 import { CardSkeleton } from '@/components/ui/Skeleton';
+import PageWrapper from '@/components/ui/PageWrapper';
+import { Button } from '@/components/ui/Button';
+import { motion, Variants } from 'framer-motion';
 
 export default function Dashboard() {
   const queryClient = useQueryClient();
   const toast = useToastStore();
+  
   const {
     stats,
     groups,
@@ -32,7 +35,7 @@ export default function Dashboard() {
     isError,
   } = useDashboardData();
 
-  // Modals state (renamed for exact verification alignment)
+  // Modals state
   const [isCreateGroupOpen, setIsCreateGroupOpen] = useState(false);
   const [isAddExpenseOpen, setIsAddExpenseOpen] = useState(false);
   const [isSettleOpen, setIsSettleOpen] = useState(false);
@@ -70,17 +73,34 @@ export default function Dashboard() {
     return 'Good evening';
   })();
 
+  const formattedDate = new Date().toLocaleDateString('en-IN', {
+    weekday: 'long',
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+  });
+
+  // slideInDown variants for page header
+  const headerVariants: Variants = {
+    hidden: { opacity: 0, y: -20 },
+    visible: {
+      opacity: 1,
+      y: 0,
+      transition: { duration: 0.5, ease: 'easeOut' },
+    },
+  };
+
   if (isLoading) {
     return (
-      <div className="space-y-8 animate-fade-in">
+      <div className="space-y-8 py-4 text-left">
         <div className="flex items-center justify-between flex-wrap gap-4">
-          <div className="h-12 w-48 bg-surface-elevated rounded-xl animate-pulse" />
+          <div className="h-12 w-48 bg-white/5 border border-white/5 rounded-xl animate-pulse" />
           <div className="flex items-center gap-3">
-            <div className="h-10 w-28 bg-surface-elevated rounded-xl animate-pulse" />
-            <div className="h-10 w-28 bg-surface-elevated rounded-xl animate-pulse" />
+            <div className="h-10 w-28 bg-white/5 border border-white/5 rounded-xl animate-pulse" />
+            <div className="h-10 w-28 bg-white/5 border border-white/5 rounded-xl animate-pulse" />
           </div>
         </div>
-        <div className="grid grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           <CardSkeleton rows={2} />
           <CardSkeleton rows={2} />
           <CardSkeleton rows={2} />
@@ -93,9 +113,9 @@ export default function Dashboard() {
 
   if (isError || !currentUser) {
     return (
-      <div className="p-6 text-center space-y-4">
-        <p className="text-danger font-medium text-lg">Failed to load dashboard data.</p>
-        <p className="text-foreground-subtle text-sm">Please check your connection and try again.</p>
+      <div className="p-12 text-center space-y-4">
+        <p className="text-rose-500 font-bold text-lg">Failed to load dashboard data.</p>
+        <p className="text-gray-500 text-sm">Please check your connection and try again.</p>
       </div>
     );
   }
@@ -104,66 +124,75 @@ export default function Dashboard() {
   const username = currentUser.name || 'User';
 
   return (
-    <div className="space-y-8 animate-fade-in">
-      {/* Page Header */}
-      <div className="flex items-center justify-between flex-wrap gap-4">
-        <div className="flex items-center gap-4">
-          <Avatar name={username} size="lg" />
-          <div>
-            <p className="text-sm text-foreground-subtle">{greeting},</p>
-            <h1 className="text-2xl lg:text-3xl font-bold text-foreground tracking-tight">
-              {username.split(' ')[0]} 👋
-            </h1>
-          </div>
+    <PageWrapper className="min-h-0 bg-transparent space-y-8 pb-10">
+      
+      {/* 1. slideInDown Page Header */}
+      <motion.div
+        variants={headerVariants}
+        initial="hidden"
+        animate="visible"
+        className="flex items-center justify-between flex-wrap gap-5 border-b border-white/5 pb-6 text-left"
+      >
+        <div>
+          <h1 className="font-heading text-white font-extrabold text-2xl tracking-tight leading-tight">
+            {greeting}, {username.split(' ')[0]} 👋
+          </h1>
+          <p className="text-gray-500 text-xs mt-1 font-semibold select-none">
+            {formattedDate}
+          </p>
         </div>
+
         <div className="flex items-center gap-3">
           {groups.length > 0 && (
-            <button
+            <Button
               id="add-expense-btn"
               onClick={() => setIsAddExpenseOpen(true)}
-              className="btn-primary flex items-center gap-2"
+              variant="primary"
+              size="md"
             >
-              <span className="text-base leading-none">+</span>
-              Add Expense
-            </button>
+              + Add Expense
+            </Button>
           )}
-          <button
+          <Button
             id="create-group-btn"
             onClick={() => setIsCreateGroupOpen(true)}
-            className="btn-ghost border border-surface-border"
+            variant="outline"
+            size="md"
           >
             New Group
-          </button>
+          </Button>
           {netBalances.length > 0 && (
-            <button
+            <Button
               id="settle-up-btn"
               onClick={() => setIsSettleOpen(true)}
-              className="btn-ghost border border-surface-border text-accent-light hover:bg-accent/10"
+              variant="outline"
+              size="md"
+              className="text-[#10b981] hover:text-[#0ea572]"
             >
               Settle Up
-            </button>
+            </Button>
           )}
         </div>
-      </div>
+      </motion.div>
 
-      {/* Stats Row */}
-      <StatsSection stats={stats} />
+      {/* 2. Stats Section */}
+      <StatsSection stats={stats} totalSpent={TOTAL_SPENDING} />
 
-      {/* Groups */}
+      {/* 3. Groups Section */}
       <GroupsSection
         groups={groups}
         currentUserId={currentUser._id}
         onNewGroup={() => setIsCreateGroupOpen(true)}
       />
 
-      {/* Middle Grid: Expenses + Activity */}
-      <div className="grid lg:grid-cols-2 gap-6">
+      {/* 4. Grid - Expenses & Activity */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <RecentExpenses expenses={recentExpenses} currentUserId={currentUser._id} />
         <ActivityFeed items={activity} />
       </div>
 
-      {/* Bottom Grid: Spending + Balance */}
-      <div className="grid lg:grid-cols-2 gap-6">
+      {/* 5. Grid - Spending & Net Balances */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <SpendingSummary categories={spending} totalSpending={TOTAL_SPENDING} />
         <BalancePanel
           balances={netBalances}
@@ -171,7 +200,7 @@ export default function Dashboard() {
         />
       </div>
 
-      {/* ── Create Group Modal ────────────────────────────────────────────── */}
+      {/* Modals mount layer */}
       <CreateGroupModal
         isOpen={isCreateGroupOpen}
         onClose={() => setIsCreateGroupOpen(false)}
@@ -179,7 +208,6 @@ export default function Dashboard() {
         isLoading={createGroupMutation.isPending}
       />
 
-      {/* ── Add Expense Modal ──────────────────────────────────────────────── */}
       <AddExpenseModal
         isOpen={isAddExpenseOpen}
         onClose={() => setIsAddExpenseOpen(false)}
@@ -189,13 +217,12 @@ export default function Dashboard() {
         isLoading={createExpenseMutation.isPending}
       />
 
-      {/* ── Settle Up Modal ────────────────────────────────────────────────── */}
       <SettleModal
         isOpen={isSettleOpen}
         onClose={() => setIsSettleOpen(false)}
         groups={groups}
         currentUserId={currentUser._id}
       />
-    </div>
+    </PageWrapper>
   );
 }
