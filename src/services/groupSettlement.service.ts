@@ -4,6 +4,7 @@ import { SettlementRepository } from '../repositories/settlement.repository';
 import { GroupRepository } from '../repositories/group.repository';
 import { AppError } from '../utils/AppError';
 import { emitToGroup } from '../sockets';
+import Settlement from '../models/settlement.model';
 
 export class GroupSettlementService {
   private balanceCalculator: BalanceCalculatorService;
@@ -60,13 +61,38 @@ export class GroupSettlementService {
     // Create the settlement record
     const settlement = await this.settlementRepo.create(groupId, from, to, amount);
 
+    // Fetch populated settlement for socket emission
+    const populatedSettlement = await Settlement.findById(settlement._id.toString())
+      .populate('from', 'name email avatar')
+      .populate('to', 'name email avatar');
+
+    if (populatedSettlement) {
+      emitToGroup(groupId, 'settlement-completed', populatedSettlement);
+    }
+
     // Calculate updated balances
     const balances = await this.balanceCalculator.calculateNetBalances(groupId, from);
-
-    // Emit real-time updates to the group room
-    emitToGroup(groupId, 'settlement-completed', settlement);
     emitToGroup(groupId, 'balance-updated', balances);
 
-    return { settlement, balances };
+    return { settlement: populatedSettlement || settlement, balances };
+  }
+
+  /**
+   * Retrieve all settlements in a group after verifying user membership.
+   */
+  async getGroupSettlements(groupId: string, userId: string) {
+    const group = await this.groupRepo.findById(groupId);
+    if (!group) {
+      throw new AppError('Group not found', 404);
+    }
+
+    const isMember = group.members.some(
+      (m) => m.userId._id.toString() === userId
+    );
+    if (!isMember) {
+      throw new AppError('Access denied: You are not a member of this group', 403);
+    }
+
+    return this.settlementRepo.findByGroupId(groupId);
   }
 }

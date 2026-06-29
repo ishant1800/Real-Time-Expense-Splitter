@@ -7,32 +7,37 @@ import {
   deleteGroup,
   removeMember,
   getGroupBalances,
+  getGroupSettlementPath,
   getGroupSettlements,
   createSettlement,
+  getGroupById,
 } from '../controllers/group.controller';
 import {
-  validateCreateGroup,
-  validateJoinGroup,
-  validateRenameGroup,
+  createGroupSchema,
+  joinGroupSchema,
+  renameGroupSchema,
+  createSettlementSchema,
   validateGroupId,
   validateMemberId,
-  validateCreateSettlement,
 } from '../validators/group.validator';
 import { authenticate } from '../middleware/auth';
+import { validate } from '../middleware/validate';
 
 const router = Router();
 
 // Protect all group routes using the authentication middleware
 router.use(authenticate);
 
-router.post('/', validateCreateGroup, createGroup);
-router.post('/join', validateJoinGroup, joinGroup);
+router.post('/', validate(createGroupSchema), createGroup);
+router.post('/join', validate(joinGroupSchema), joinGroup);
 router.get('/', listUserGroups);
-router.patch('/:groupId', validateGroupId, validateRenameGroup, renameGroup);
+router.get('/:groupId', validateGroupId, getGroupById);
+router.patch('/:groupId', validateGroupId, validate(renameGroupSchema), renameGroup);
 router.delete('/:groupId', validateGroupId, deleteGroup);
 router.delete('/:groupId/members/:memberId', validateGroupId, validateMemberId, removeMember);
 router.get('/:groupId/balances', validateGroupId, getGroupBalances);
-router.get('/:groupId/settlement-path', validateGroupId, getGroupSettlements);
-router.post('/:groupId/settlements', validateGroupId, validateCreateSettlement, createSettlement);
+router.get('/:groupId/settlement-path', validateGroupId, getGroupSettlementPath);
+router.get('/:groupId/settlements', validateGroupId, getGroupSettlements);
+router.post('/:groupId/settlements', validateGroupId, validate(createSettlementSchema), createSettlement);
 
 export default router;

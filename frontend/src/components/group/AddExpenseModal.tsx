@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -22,7 +22,7 @@ const expenseSchema = z.object({
 type ExpenseFormData = z.infer<typeof expenseSchema>;
 
 const CATEGORIES = [
-  { value: 'food', label: '🍔 Food', },
+  { value: 'food', label: '🍔 Food' },
   { value: 'transport', label: '🚗 Transport' },
   { value: 'entertainment', label: '🎬 Entertainment' },
   { value: 'shopping', label: '🛍️ Shopping' },
@@ -43,7 +43,8 @@ const SPLIT_TYPES = [
 interface AddExpenseModalProps {
   isOpen: boolean;
   onClose: () => void;
-  group: Group;
+  group?: Group;
+  groups?: Group[];
   currentUserId: string;
   onSubmit: (payload: CreateExpensePayload) => Promise<void>;
   isLoading?: boolean;
@@ -72,17 +73,20 @@ export function AddExpenseModal({
   isOpen,
   onClose,
   group,
+  groups = [],
   currentUserId,
   onSubmit,
   isLoading = false,
 }: AddExpenseModalProps) {
   const [serverError, setServerError] = useState('');
+  const [selectedGroup, setSelectedGroup] = useState<Group | undefined>(group);
 
   const {
     register,
     handleSubmit,
     watch,
     reset,
+    setValue,
     formState: { errors },
   } = useForm<ExpenseFormData>({
     resolver: zodResolver(expenseSchema),
@@ -92,6 +96,34 @@ export function AddExpenseModal({
     },
   });
 
+  useEffect(() => {
+    setSelectedGroup(group);
+  }, [group]);
+
+  useEffect(() => {
+    if (isOpen) {
+      setServerError('');
+      reset({
+        splitType: 'equal',
+        paidBy: currentUserId,
+      });
+
+      if (group) {
+        setSelectedGroup(group);
+      } else if (groups.length > 0) {
+        setSelectedGroup(groups[0]);
+      }
+    }
+  }, [isOpen, group, groups, currentUserId, reset]);
+
+  // Update paidBy default value when selectedGroup changes
+  useEffect(() => {
+    if (selectedGroup && selectedGroup.members.length > 0) {
+      const hasCurrentUser = selectedGroup.members.some(m => m.userId._id === currentUserId);
+      setValue('paidBy', hasCurrentUser ? currentUserId : selectedGroup.members[0].userId._id);
+    }
+  }, [selectedGroup, currentUserId, setValue]);
+
   const handleClose = () => {
     reset();
     setServerError('');
@@ -99,32 +131,37 @@ export function AddExpenseModal({
   };
 
   const onFormSubmit = async (data: ExpenseFormData) => {
+    if (!selectedGroup) {
+      setServerError('Please select a group');
+      return;
+    }
+
     try {
       setServerError('');
       await onSubmit({
-        groupId: group._id,
+        groupId: selectedGroup._id,
         paidBy: data.paidBy,
         amount: parseFloat(data.amount),
         description: data.description,
         category: data.category,
         splitType: data.splitType,
-        // For equal split, no extra splits array needed — backend handles it
       });
       handleClose();
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Something went wrong';
+    } catch (err: any) {
+      const msg = err.response?.data?.message || err.message || 'Something went wrong';
       setServerError(msg);
     }
   };
 
   const splitType = watch('splitType');
+  const members = selectedGroup?.members || [];
 
   return (
     <Modal
       isOpen={isOpen}
       onClose={handleClose}
       title="Add Expense"
-      subtitle={`Adding to ${group.name}`}
+      subtitle={selectedGroup ? `Adding to ${selectedGroup.name}` : 'Add a new expense'}
       size="md"
       footer={
         <>
@@ -135,10 +172,10 @@ export function AddExpenseModal({
             id="submit-expense-btn"
             form="add-expense-form"
             type="submit"
-            disabled={isLoading}
+            disabled={isLoading || !selectedGroup}
             className={cn(
               'btn-primary min-w-[110px] flex items-center justify-center gap-2',
-              isLoading && 'opacity-60 cursor-not-allowed',
+              (isLoading || !selectedGroup) && 'opacity-60 cursor-not-allowed',
             )}
           >
             {isLoading ? (
@@ -151,9 +188,32 @@ export function AddExpenseModal({
     >
       <form id="add-expense-form" onSubmit={handleSubmit(onFormSubmit)} className="space-y-4">
         {serverError && (
-          <div className="p-3 bg-danger/10 border border-danger/20 rounded-xl text-sm text-danger">
+          <div className="p-3 bg-danger/10 border border-danger/20 rounded-xl text-sm text-danger animate-fade-in">
             {serverError}
           </div>
+        )}
+
+        {/* Group Selector (Dashboard mode) */}
+        {!group && groups.length > 0 && (
+          <Field label="Select Group">
+            <div className="relative">
+              <select
+                value={selectedGroup?._id || ''}
+                onChange={(e) => {
+                  const found = groups.find(g => g._id === e.target.value);
+                  setSelectedGroup(found);
+                }}
+                className={selectCls}
+              >
+                {groups.map(g => (
+                  <option key={g._id} value={g._id}>{g.name}</option>
+                ))}
+              </select>
+              <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-foreground-subtle">
+                ▼
+              </div>
+            </div>
+          </Field>
         )}
 
         {/* Description */}
@@ -168,7 +228,7 @@ export function AddExpenseModal({
 
         {/* Amount + Category row */}
         <div className="grid grid-cols-2 gap-3">
-          <Field label="Amount (USD)" error={errors.amount?.message}>
+          <Field label="Amount (INR)" error={errors.amount?.message}>
             <input
               {...register('amount')}
               id="expense-amount"
@@ -181,28 +241,41 @@ export function AddExpenseModal({
           </Field>
 
           <Field label="Category" error={errors.category?.message}>
-            <select
-              {...register('category')}
-              id="expense-category"
-              className={selectCls}
-            >
-              <option value="">Select…</option>
-              {CATEGORIES.map(c => (
-                <option key={c.value} value={c.value}>{c.label}</option>
-              ))}
-            </select>
+            <div className="relative">
+              <select
+                {...register('category')}
+                id="expense-category"
+                className={selectCls}
+              >
+                <option value="">Select…</option>
+                {CATEGORIES.map(c => (
+                  <option key={c.value} value={c.value}>{c.label}</option>
+                ))}
+              </select>
+              <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-foreground-subtle">
+                ▼
+              </div>
+            </div>
           </Field>
         </div>
 
         {/* Paid By */}
         <Field label="Paid By" error={errors.paidBy?.message}>
-          <select {...register('paidBy')} id="expense-paid-by" className={selectCls}>
-            {group.members.map(m => (
-              <option key={m.userId._id} value={m.userId._id}>
-                {m.userId.name}{m.userId._id === currentUserId ? ' (You)' : ''}
-              </option>
-            ))}
-          </select>
+          <div className="relative">
+            <select {...register('paidBy')} id="expense-paid-by" className={selectCls} disabled={members.length === 0}>
+              {members.map(m => (
+                <option key={m.userId._id} value={m.userId._id}>
+                  {m.userId.name}{m.userId._id === currentUserId ? ' (You)' : ''}
+                </option>
+              ))}
+            </select>
+            <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-foreground-subtle">
+              ▼
+            </div>
+          </div>
+          {members.length === 0 && selectedGroup && (
+            <p className="text-xs text-danger">No members in selected group.</p>
+          )}
         </Field>
 
         {/* Split Type */}
@@ -232,12 +305,12 @@ export function AddExpenseModal({
         </Field>
 
         {/* Equal split note */}
-        {splitType === 'equal' && (
+        {splitType === 'equal' && selectedGroup && (
           <p className="text-xs text-foreground-subtle bg-surface-elevated border border-surface-border rounded-xl p-3">
-            💡 Amount will be divided equally among all {group.members.length} members.
+            💡 Amount will be divided equally among all {members.length} members.
           </p>
         )}
-        {splitType !== 'equal' && (
+        {splitType !== 'equal' && selectedGroup && (
           <p className="text-xs text-foreground-subtle bg-surface-elevated border border-surface-border rounded-xl p-3">
             ⚠️ Custom split amounts can be adjusted after creation from the expense detail view.
           </p>

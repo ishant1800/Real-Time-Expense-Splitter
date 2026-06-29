@@ -9,22 +9,23 @@ import type { Group } from '@/types';
 interface GroupsSectionProps {
   groups: Group[];
   currentUserId: string;
+  onNewGroup?: () => void;
 }
 
-export function GroupsSection({ groups, currentUserId }: GroupsSectionProps) {
+export function GroupsSection({ groups, currentUserId, onNewGroup }: GroupsSectionProps) {
   const navigate = useNavigate();
 
   if (groups.length === 0) {
     return (
       <Card className="p-2">
         <CardHeader title="Your Groups" icon="👥" action={
-          <button className="btn-primary text-xs px-3 py-1.5">+ New Group</button>
+          <button onClick={onNewGroup} className="btn-primary text-xs px-3 py-1.5">+ New Group</button>
         } className="p-5" />
         <EmptyState
           icon="🫂"
           title="No groups yet"
           description="Create a group to start splitting expenses with friends, family, or colleagues."
-          action={<button className="btn-primary">Create a Group</button>}
+          action={<button onClick={onNewGroup} className="btn-primary">Create a Group</button>}
         />
       </Card>
     );
@@ -34,7 +35,7 @@ export function GroupsSection({ groups, currentUserId }: GroupsSectionProps) {
     <Card className="p-2">
       <div className="flex items-center justify-between px-5 pt-5 pb-4">
         <CardHeader title="Your Groups" subtitle={`${groups.length} active`} icon="👥" />
-        <button className="btn-primary text-xs px-3 py-1.5">+ New Group</button>
+        <button onClick={onNewGroup} className="btn-primary text-xs px-3 py-1.5">+ New Group</button>
       </div>
 
       <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3 px-3 pb-3">

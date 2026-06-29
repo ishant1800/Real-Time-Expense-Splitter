@@ -1,106 +1,43 @@
-import { Request, Response, NextFunction } from 'express';
+import { z } from 'zod';
 import mongoose from 'mongoose';
+import { Request, Response, NextFunction } from 'express';
 import { ValidationError } from '../utils/CustomErrors';
 
-/**
- * Validate create expense payload body.
- */
-export const validateCreateExpense = (req: Request, res: Response, next: NextFunction): void => {
-  const errors: string[] = [];
-  const { groupId, paidBy, amount, description, category, splitType, splits } = req.body;
-
-  if (!groupId || !mongoose.Types.ObjectId.isValid(groupId as string)) {
-    errors.push('groupId is required and must be a valid ObjectId');
-  }
-
-  if (!paidBy || !mongoose.Types.ObjectId.isValid(paidBy as string)) {
-    errors.push('paidBy is required and must be a valid ObjectId');
-  }
-
-  if (amount === undefined || typeof amount !== 'number' || amount <= 0) {
-    errors.push('amount is required and must be a number greater than 0');
-  }
-
-  if (!description || typeof description !== 'string' || description.trim().length === 0) {
-    errors.push('description is required and must be a non-empty string');
-  } else if (description.trim().length > 255) {
-    errors.push('description cannot exceed 255 characters');
-  }
-
-  if (!category || typeof category !== 'string' || category.trim().length === 0) {
-    errors.push('category is required and must be a non-empty string');
-  }
-
-  const validSplitTypes = ['equal', 'exact', 'percentage', 'shares'];
-  if (!splitType || !validSplitTypes.includes(splitType)) {
-    errors.push(`splitType must be one of: ${validSplitTypes.join(', ')}`);
-  }
-
-  if (!splits || !Array.isArray(splits) || splits.length === 0) {
-    errors.push('splits must be a non-empty array');
-  } else {
-    splits.forEach((s: any, idx: number) => {
-      if (!s.userId || !mongoose.Types.ObjectId.isValid(s.userId as string)) {
-        errors.push(`splits[${idx}].userId is required and must be a valid ObjectId`);
-      }
-    });
-  }
-
-  if (errors.length > 0) {
-    return next(new ValidationError('Validation failed', errors));
-  }
-
-  next();
-};
+// Helper to validate Mongoose ObjectId strings
+const objectIdSchema = z.string().refine((val) => mongoose.Types.ObjectId.isValid(val), {
+  message: 'Invalid ObjectId format',
+});
 
 /**
- * Validate update expense payload body.
+ * Zod Schema for creating a new expense.
  */
-export const validateUpdateExpense = (req: Request, res: Response, next: NextFunction): void => {
-  const errors: string[] = [];
-  const { paidBy, amount, description, category, splitType, splits } = req.body;
+export const createExpenseSchema = z.object({
+  groupId: objectIdSchema,
+  paidBy: objectIdSchema,
+  amount: z.number().positive('Amount must be greater than 0'),
+  description: z
+    .string()
+    .min(1, 'Description is required')
+    .max(255, 'Description cannot exceed 255 characters'),
+  category: z.string().min(1, 'Category is required'),
+  receiptUrl: z.string().url('Must be a valid URL').optional().or(z.literal('')),
+  splitType: z.enum(['equal', 'exact', 'percentage', 'shares']),
+  splits: z
+    .array(
+      z.object({
+        userId: objectIdSchema,
+        amount: z.number().nonnegative().optional(),
+        percentage: z.number().min(0).max(100).optional(),
+        share: z.number().nonnegative().optional(),
+      })
+    )
+    .min(1, 'At least one split participant is required'),
+});
 
-  if (paidBy !== undefined && !mongoose.Types.ObjectId.isValid(paidBy as string)) {
-    errors.push('paidBy must be a valid ObjectId');
-  }
-
-  if (amount !== undefined && (typeof amount !== 'number' || amount <= 0)) {
-    errors.push('amount must be a number greater than 0');
-  }
-
-  if (description !== undefined && (typeof description !== 'string' || description.trim().length === 0)) {
-    errors.push('description must be a non-empty string');
-  } else if (description !== undefined && description.trim().length > 255) {
-    errors.push('description cannot exceed 255 characters');
-  }
-
-  if (category !== undefined && (typeof category !== 'string' || category.trim().length === 0)) {
-    errors.push('category must be a non-empty string');
-  }
-
-  const validSplitTypes = ['equal', 'exact', 'percentage', 'shares'];
-  if (splitType !== undefined && !validSplitTypes.includes(splitType)) {
-    errors.push(`splitType must be one of: ${validSplitTypes.join(', ')}`);
-  }
-
-  if (splits !== undefined) {
-    if (!Array.isArray(splits) || splits.length === 0) {
-      errors.push('splits must be a non-empty array');
-    } else {
-      splits.forEach((s: any, idx: number) => {
-        if (!s.userId || !mongoose.Types.ObjectId.isValid(s.userId as string)) {
-          errors.push(`splits[${idx}].userId is required and must be a valid ObjectId`);
-        }
-      });
-    }
-  }
-
-  if (errors.length > 0) {
-    return next(new ValidationError('Validation failed', errors));
-  }
-
-  next();
-};
+/**
+ * Zod Schema for updating an existing expense.
+ */
+export const updateExpenseSchema = createExpenseSchema.partial();
 
 /**
  * Validate expenseId parameter format.

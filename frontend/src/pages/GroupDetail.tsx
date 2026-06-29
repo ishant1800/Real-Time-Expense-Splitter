@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 
 import { MembersPanel } from '@/components/group/MembersPanel';
@@ -7,6 +7,7 @@ import { ExpenseList } from '@/components/group/ExpenseList';
 import { BalanceBoard } from '@/components/group/BalanceBoard';
 import { SettlementHistory } from '@/components/group/SettlementHistory';
 import { AddExpenseModal } from '@/components/group/AddExpenseModal';
+import { SettleModal } from '@/components/group/SettleModal';
 import { CardSkeleton } from '@/components/ui/Skeleton';
 
 import {
@@ -21,13 +22,9 @@ import {
   groupKeys,
 } from '@/hooks/useGroupQueries';
 import { useGroupSocket } from '@/hooks/useGroupSocket';
-import { MOCK_USER } from '@/hooks/useDashboardData';
-import {
-  MOCK_GROUP_DETAIL,
-  MOCK_GROUP_EXPENSES,
-  MOCK_GROUP_BALANCES,
-  MOCK_GROUP_SETTLEMENTS,
-} from '@/hooks/useGroupMockData';
+import { useAuthStore } from '@/store/useAuthStore';
+import { useToastStore } from '@/store/useToastStore';
+import { groupApi } from '@/services/groupApi';
 import type { CreateExpensePayload } from '@/services/groupApi';
 import { formatDate } from '@/lib/utils';
 
@@ -44,14 +41,22 @@ const TABS: { key: Tab; label: string; icon: string }[] = [
 // ─── Component ────────────────────────────────────────────────────────────────
 export default function GroupDetail() {
   const { groupId = '' } = useParams();
+  const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const toast = useToastStore();
+  const currentUser = useAuthStore((state) => state.user);
+  const currentUserId = currentUser?._id || '';
 
   const [activeTab, setActiveTab] = useState<Tab>('expenses');
-  const [isExpenseModalOpen, setIsExpenseModalOpen] = useState(false);
+  const [isAddExpenseOpen, setIsAddExpenseOpen] = useState(false);
+  const [isSettleOpen, setIsSettleOpen] = useState(false);
   const [socketActivity, setSocketActivity] = useState<string[]>([]);
 
   // ─── Data queries ───────────────────────────────────────────────────────────
-  const groupQuery = useGroup(groupId);
+  const groupQuery = useQueryClient().getQueryState(groupKeys.detail(groupId))
+    ? useGroup(groupId)
+    : useGroup(groupId);
+
   const expensesQuery = useExpenses(groupId);
   const balancesQuery = useBalances(groupId);
   const settlementsQuery = useSettlements(groupId);
@@ -62,21 +67,24 @@ export default function GroupDetail() {
   const createSettlement = useCreateSettlement(groupId);
   const removeMember = useRemoveMember(groupId);
 
-  // ─── Socket.io integration (logic-free, just invalidates caches) ────────────
+  // ─── Socket.io integration ──────────────────────────────────────────────────
   const handleExpenseAdded = useCallback(() => {
     queryClient.invalidateQueries({ queryKey: groupKeys.expenses(groupId) });
     queryClient.invalidateQueries({ queryKey: groupKeys.balances(groupId) });
+    queryClient.invalidateQueries({ queryKey: groupKeys.all });
     setSocketActivity(prev => [`Expense added by another member`, ...prev.slice(0, 4)]);
   }, [groupId, queryClient]);
 
   const handleBalanceUpdated = useCallback(() => {
     queryClient.invalidateQueries({ queryKey: groupKeys.balances(groupId) });
+    queryClient.invalidateQueries({ queryKey: groupKeys.all });
     setSocketActivity(prev => [`Balances updated`, ...prev.slice(0, 4)]);
   }, [groupId, queryClient]);
 
   const handleSettlementCompleted = useCallback(() => {
     queryClient.invalidateQueries({ queryKey: groupKeys.settlements(groupId) });
     queryClient.invalidateQueries({ queryKey: groupKeys.balances(groupId) });
+    queryClient.invalidateQueries({ queryKey: groupKeys.all });
     setSocketActivity(prev => [`Settlement completed`, ...prev.slice(0, 4)]);
   }, [groupId, queryClient]);
 
@@ -97,13 +105,46 @@ export default function GroupDetail() {
 
   const handleSettle = (toUserId: string, amount: number) => {
     createSettlement.mutate(
-      { from: MOCK_USER._id, to: toUserId, amount },
+      { from: currentUserId, to: toUserId, amount },
       { onSuccess: () => setActiveTab('settlements') },
     );
   };
 
   const handleRemoveMember = (userId: string) => {
     removeMember.mutate(userId);
+  };
+
+  const handleCopyInviteLink = () => {
+    const inviteLink = `${window.location.origin}/groups?join=${group.inviteCode}`;
+    navigator.clipboard.writeText(inviteLink);
+    toast.success('Invite link copied to clipboard');
+  };
+
+  const handleDeleteGroup = async () => {
+    if (confirm('Are you sure you want to delete this group? This cannot be undone.')) {
+      try {
+        await groupApi.deleteGroup(groupId);
+        queryClient.invalidateQueries({ queryKey: groupKeys.all });
+        toast.success('Group deleted');
+        navigate('/dashboard');
+      } catch (err: any) {
+        toast.error(err.response?.data?.message || err.message || 'Failed to delete group');
+      }
+    }
+  };
+
+  const handleLeaveGroup = async () => {
+    if (confirm('Are you sure you want to leave this group?')) {
+      try {
+        // Backend expects DELETE /api/groups/:id/members/me or userId
+        await groupApi.removeMember(groupId, 'me');
+        queryClient.invalidateQueries({ queryKey: groupKeys.all });
+        toast.success('Left group');
+        navigate('/dashboard');
+      } catch (err: any) {
+        toast.error(err.response?.data?.message || err.message || 'Failed to leave group');
+      }
+    }
   };
 
   // ─── Loading state ──────────────────────────────────────────────────────────
@@ -123,25 +164,27 @@ export default function GroupDetail() {
     );
   }
 
-  // ─── Error state: fall back to mock data in dev mode ────────────────────────
-  const isDevMode = groupQuery.isError || !groupQuery.data;
+  // ─── Error/Unavailable state ───────────────────────────────────────────────
+  if (groupQuery.isError || !groupQuery.data) {
+    return (
+      <div className="p-6 text-center space-y-4">
+        <p className="text-danger font-medium text-lg">Failed to load group details.</p>
+        <p className="text-foreground-subtle text-sm">Please check your connection and try again.</p>
+        <Link to="/dashboard" className="btn-primary inline-block">Back to Dashboard</Link>
+      </div>
+    );
+  }
 
-  const group = groupQuery.data ?? MOCK_GROUP_DETAIL;
-  const expenses = expensesQuery.data ?? (isDevMode ? MOCK_GROUP_EXPENSES : []);
-  const balances = balancesQuery.data ?? (isDevMode ? MOCK_GROUP_BALANCES : []);
-  const settlements = settlementsQuery.data ?? (isDevMode ? MOCK_GROUP_SETTLEMENTS : []);
-  const currentUserId = MOCK_USER._id;
+  const group = groupQuery.data;
+  const expenses = expensesQuery.data || [];
+  const balances = balancesQuery.data || [];
+  const settlements = settlementsQuery.data || [];
+
+  const memberShip = group.members.find((m) => m.userId._id === currentUserId);
+  const isOwner = memberShip?.role === 'owner';
 
   return (
     <div className="space-y-6 animate-fade-in">
-      {/* Dev mode banner */}
-      {isDevMode && (
-        <div className="flex items-center gap-3 p-3 bg-warning/10 border border-warning/20 rounded-xl text-sm text-warning">
-          <span>⚠️</span>
-          <span className="font-medium">Demo mode:</span>
-          <span className="text-warning/80">Backend not connected — showing mock data. Start the backend server to use live data.</span>
-        </div>
-      )}
       {/* ── Page Header ──────────────────────────────────────────────────── */}
       <div className="flex items-start justify-between flex-wrap gap-4">
         <div>
@@ -176,11 +219,47 @@ export default function GroupDetail() {
 
           <button
             id="group-add-expense-btn"
-            onClick={() => setIsExpenseModalOpen(true)}
+            onClick={() => setIsAddExpenseOpen(true)}
             className="btn-primary"
           >
             + Add Expense
           </button>
+
+          <button
+            id="invite-members-btn"
+            onClick={handleCopyInviteLink}
+            className="btn-ghost border border-surface-border"
+          >
+            Invite Members 📋
+          </button>
+
+          {balances.length > 0 && (
+            <button
+              id="group-settle-up-btn"
+              onClick={() => setIsSettleOpen(true)}
+              className="btn-ghost border border-surface-border text-accent-light"
+            >
+              Settle Up ⚖️
+            </button>
+          )}
+
+          {isOwner ? (
+            <button
+              id="delete-group-btn"
+              onClick={handleDeleteGroup}
+              className="btn-ghost border border-danger/30 text-danger hover:bg-danger/10"
+            >
+              Delete Group 🗑️
+            </button>
+          ) : (
+            <button
+              id="leave-group-btn"
+              onClick={handleLeaveGroup}
+              className="btn-ghost border border-danger/30 text-danger hover:bg-danger/10"
+            >
+              Leave Group 🚪
+            </button>
+          )}
         </div>
       </div>
 
@@ -231,7 +310,7 @@ export default function GroupDetail() {
               <ExpenseList
                 expenses={expenses}
                 currentUserId={currentUserId}
-                onAddExpense={() => setIsExpenseModalOpen(true)}
+                onAddExpense={() => setIsAddExpenseOpen(true)}
                 onDeleteExpense={handleDeleteExpense}
                 isDeleting={deleteExpense.isPending}
               />
@@ -298,12 +377,20 @@ export default function GroupDetail() {
 
       {/* ── Add Expense Modal ──────────────────────────────────────────────── */}
       <AddExpenseModal
-        isOpen={isExpenseModalOpen}
-        onClose={() => setIsExpenseModalOpen(false)}
+        isOpen={isAddExpenseOpen}
+        onClose={() => setIsAddExpenseOpen(false)}
         group={group}
         currentUserId={currentUserId}
         onSubmit={handleAddExpense}
         isLoading={createExpense.isPending}
+      />
+
+      {/* ── Settle Up Modal ────────────────────────────────────────────────── */}
+      <SettleModal
+        isOpen={isSettleOpen}
+        onClose={() => setIsSettleOpen(false)}
+        group={group}
+        currentUserId={currentUserId}
       />
     </div>
   );

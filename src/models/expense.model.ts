@@ -99,6 +99,12 @@ const expenseSchema = new Schema<IExpenseDocument>(
   }
 );
 
+// Compound index to optimize queries filtering by group and sorting by creation date (e.g., recent group expenses)
+expenseSchema.index({ groupId: 1, createdAt: -1 });
+
+// Single-field index on sub-document array to optimize queries finding expenses where a specific user is part of the split
+expenseSchema.index({ 'splits.userId': 1 });
+
 expenseSchema.set('toJSON', {
   transform(_doc: any, ret: any) {
     delete ret.__v;

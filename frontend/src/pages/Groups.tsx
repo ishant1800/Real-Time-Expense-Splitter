@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { groupApi } from '../services/groupApi';
 import { groupKeys } from '../hooks/useGroupQueries';
 import { useAuthStore } from '../store/useAuthStore';
@@ -11,10 +11,10 @@ import { EmptyState } from '../components/ui/EmptyState';
 import { Modal } from '../components/ui/Modal';
 import { CardSkeleton } from '../components/ui/Skeleton';
 import { formatDate } from '../lib/utils';
-import { MOCK_GROUPS } from '../hooks/useDashboardData';
 
 export default function Groups() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const queryClient = useQueryClient();
   const currentUser = useAuthStore((state) => state.user);
 
@@ -26,8 +26,16 @@ export default function Groups() {
 
   const [errorMessage, setErrorMessage] = useState('');
 
+  useEffect(() => {
+    const joinCode = searchParams.get('join');
+    if (joinCode) {
+      setInviteCode(joinCode);
+      setIsJoinOpen(true);
+    }
+  }, [searchParams]);
+
   // ─── Queries & Mutations ───────────────────────────────────────────────────
-  const { data: apiGroups, isLoading, isError } = useQuery({
+  const { data: apiGroups, isLoading } = useQuery({
     queryKey: groupKeys.all,
     queryFn: () => groupApi.listGroups(),
     retry: false,
@@ -58,10 +66,9 @@ export default function Groups() {
     },
   });
 
-  // Fallback to mock data in development if the backend is offline
-  const isDevMode = isError || !currentUser;
-  const groups = apiGroups ?? (isDevMode ? MOCK_GROUPS : []);
-  const currentUserId = currentUser?._id || 'user-1';
+  // Get live groups only
+  const groups = apiGroups ?? [];
+  const currentUserId = currentUser?._id || '';
 
   // ─── Handlers ──────────────────────────────────────────────────────────────
   const handleCreateGroup = (e: React.FormEvent) => {
@@ -83,14 +90,6 @@ export default function Groups() {
 
   return (
     <div className="space-y-6 animate-fade-in">
-      {/* Dev mode warning */}
-      {isDevMode && (
-        <div className="flex items-center gap-3 p-3 bg-warning/10 border border-warning/20 rounded-xl text-sm text-warning">
-          <span>⚠️</span>
-          <span className="font-medium">Demo mode:</span>
-          <span className="text-warning/80">Backend offline — showing mock groups.</span>
-        </div>
-      )}
 
       {/* Page Header */}
       <div className="flex items-center justify-between flex-wrap gap-4">

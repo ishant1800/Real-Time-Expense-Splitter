@@ -72,8 +72,9 @@ api.interceptors.response.use(
 
         const { accessToken, refreshToken: newRefreshToken } = res.data.data;
 
+        const currentUser = useAuthStore.getState().user || { _id: '', name: '', email: '' };
         useAuthStore.getState().setAuth(
-          useAuthStore.getState().user!,
+          currentUser,
           accessToken,
           newRefreshToken
         );

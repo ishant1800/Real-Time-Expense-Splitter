@@ -58,6 +58,22 @@ export const listUserGroups = asyncHandler(async (req: Request, res: Response) =
 });
 
 /**
+ * GET /api/groups/:groupId
+ * Retrieve a group by ID. Requester must be a member.
+ */
+export const getGroupById = asyncHandler(async (req: Request, res: Response) => {
+  const { groupId } = req.params;
+  const userId = req.user?.userId;
+  if (!userId) {
+    throw new AppError('User not authenticated', 401);
+  }
+
+  const group = await groupService.getGroupById(groupId as string, userId);
+
+  ApiResponse.success(res, 200, 'Group retrieved successfully', { group });
+});
+
+/**
  * PATCH /api/groups/:groupId
  * Rename a group. Only owners can do this.
  */
@@ -108,7 +124,7 @@ export const removeMember = asyncHandler(async (req: Request, res: Response) => 
 
 /**
  * GET /api/groups/:groupId/balances
- * Retrieve each member's net balance within a group.
+ * Retrieve balances of all members in a group.
  */
 export const getGroupBalances = asyncHandler(async (req: Request, res: Response) => {
   const { groupId } = req.params;
@@ -126,7 +142,7 @@ export const getGroupBalances = asyncHandler(async (req: Request, res: Response)
  * GET /api/groups/:groupId/settlement-path
  * Retrieve recommended simplified transactions to settle all debts in a group.
  */
-export const getGroupSettlements = asyncHandler(async (req: Request, res: Response) => {
+export const getGroupSettlementPath = asyncHandler(async (req: Request, res: Response) => {
   const { groupId } = req.params;
   const userId = req.user?.userId;
   if (!userId) {
@@ -136,6 +152,22 @@ export const getGroupSettlements = asyncHandler(async (req: Request, res: Respon
   const transactions = await groupSettlementService.getGroupSettlementPath(groupId as string, userId);
 
   ApiResponse.success(res, 200, 'Debt simplification settlement path calculated successfully', { transactions });
+});
+
+/**
+ * GET /api/groups/:groupId/settlements
+ * Retrieve the list of recorded settlements in a group.
+ */
+export const getGroupSettlements = asyncHandler(async (req: Request, res: Response) => {
+  const { groupId } = req.params;
+  const userId = req.user?.userId;
+  if (!userId) {
+    throw new AppError('User not authenticated', 401);
+  }
+
+  const settlements = await groupSettlementService.getGroupSettlements(groupId as string, userId);
+
+  ApiResponse.success(res, 200, 'Group settlements retrieved successfully', { settlements });
 });
 
 /**

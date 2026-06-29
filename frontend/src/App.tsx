@@ -5,6 +5,8 @@ import Register from './pages/Register';
 import Dashboard from './pages/Dashboard';
 import Groups from './pages/Groups';
 import GroupDetail from './pages/GroupDetail';
+import Expenses from './pages/Expenses';
+import Settlements from './pages/Settlements';
 import { ProtectedRoute } from './components/layout/ProtectedRoute';
 
 function App() {
@@ -20,6 +22,8 @@ function App() {
           <Route path="dashboard" element={<Dashboard />} />
           <Route path="groups" element={<Groups />} />
           <Route path="groups/:groupId" element={<GroupDetail />} />
+          <Route path="expenses" element={<Expenses />} />
+          <Route path="settlements" element={<Settlements />} />
         </Route>
       </Route>
 

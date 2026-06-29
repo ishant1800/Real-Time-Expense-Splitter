@@ -1,198 +1,251 @@
-import type { Group, Expense, ActivityItem, DashboardStats, SpendingCategory, NetBalance } from '@/types';
+import { useQuery, useQueries } from '@tanstack/react-query';
+import { groupApi, expenseApi, balanceApi } from '@/services/groupApi';
+import { useAuthStore } from '@/store/useAuthStore';
+import { groupKeys } from './useGroupQueries';
+import type {
+  Expense,
+  ActivityItem,
+  DashboardStats,
+  SpendingCategory,
+  NetBalance,
+} from '@/types';
 
-// ─── Mock Data ──────────────────────────────────────────────────────────────
-// Replace with real API calls via TanStack Query when backend is connected.
+export function useDashboardData() {
+  const currentUser = useAuthStore((state) => state.user);
+  const currentUserId = currentUser?._id || '';
 
-export const MOCK_USER = {
-  _id: 'user-1',
-  name: 'Alex Johnson',
-  email: 'alex@example.com',
-};
+  // 1. Fetch all user's groups
+  const groupsQuery = useQuery({
+    queryKey: groupKeys.all,
+    queryFn: () => groupApi.listGroups(),
+    enabled: !!currentUserId,
+    staleTime: 30_000,
+  });
 
-export const MOCK_GROUPS: Group[] = [
-  {
-    _id: 'g1',
-    name: 'Barcelona Trip 🇪🇸',
-    inviteCode: 'BAR-2024',
-    members: [
-      { userId: { _id: 'user-1', name: 'Alex Johnson', email: 'alex@example.com' }, role: 'owner' },
-      { userId: { _id: 'user-2', name: 'Maria Garcia', email: 'maria@example.com' }, role: 'member' },
-      { userId: { _id: 'user-3', name: 'Tom Wilson', email: 'tom@example.com' }, role: 'member' },
-      { userId: { _id: 'user-4', name: 'Sara Lee', email: 'sara@example.com' }, role: 'member' },
-    ],
-    createdAt: '2024-06-01T10:00:00Z',
-    updatedAt: '2024-06-28T18:00:00Z',
-  },
-  {
-    _id: 'g2',
-    name: 'Apartment Rent 🏠',
-    inviteCode: 'APT-HOME',
-    members: [
-      { userId: { _id: 'user-1', name: 'Alex Johnson', email: 'alex@example.com' }, role: 'owner' },
-      { userId: { _id: 'user-2', name: 'Maria Garcia', email: 'maria@example.com' }, role: 'member' },
-      { userId: { _id: 'user-5', name: 'James Brown', email: 'james@example.com' }, role: 'member' },
-    ],
-    createdAt: '2024-01-15T08:00:00Z',
-    updatedAt: '2024-06-25T10:00:00Z',
-  },
-  {
-    _id: 'g3',
-    name: 'Office Lunch 🍕',
-    inviteCode: 'OFC-LNC',
-    members: [
-      { userId: { _id: 'user-1', name: 'Alex Johnson', email: 'alex@example.com' }, role: 'member' },
-      { userId: { _id: 'user-3', name: 'Tom Wilson', email: 'tom@example.com' }, role: 'owner' },
-      { userId: { _id: 'user-6', name: 'Priya Patel', email: 'priya@example.com' }, role: 'member' },
-      { userId: { _id: 'user-7', name: 'Chris Evans', email: 'chris@example.com' }, role: 'member' },
-      { userId: { _id: 'user-8', name: 'Lena Kim', email: 'lena@example.com' }, role: 'member' },
-    ],
-    createdAt: '2024-03-10T09:00:00Z',
-    updatedAt: '2024-06-29T12:00:00Z',
-  },
-];
+  const groups = groupsQuery.data || [];
 
-export const MOCK_RECENT_EXPENSES: Expense[] = [
-  {
-    _id: 'e1',
-    groupId: 'g1',
-    paidBy: { _id: 'user-2', name: 'Maria Garcia', email: 'maria@example.com' },
-    amount: 248.5,
-    description: 'Hotel booking — 2 nights',
-    category: 'travel',
-    splits: [],
-    splitType: 'equal',
-    createdAt: '2024-06-28T14:30:00Z',
-    updatedAt: '2024-06-28T14:30:00Z',
-  },
-  {
-    _id: 'e2',
-    groupId: 'g3',
-    paidBy: { _id: 'user-1', name: 'Alex Johnson', email: 'alex@example.com' },
-    amount: 87.4,
-    description: 'Team lunch at Chipotle',
-    category: 'food',
-    splits: [],
-    splitType: 'equal',
-    createdAt: '2024-06-28T13:00:00Z',
-    updatedAt: '2024-06-28T13:00:00Z',
-  },
-  {
-    _id: 'e3',
-    groupId: 'g2',
-    paidBy: { _id: 'user-1', name: 'Alex Johnson', email: 'alex@example.com' },
-    amount: 1800,
-    description: 'Monthly rent — July',
-    category: 'rent',
-    splits: [],
-    splitType: 'equal',
-    createdAt: '2024-06-27T09:00:00Z',
-    updatedAt: '2024-06-27T09:00:00Z',
-  },
-  {
-    _id: 'e4',
-    groupId: 'g1',
-    paidBy: { _id: 'user-3', name: 'Tom Wilson', email: 'tom@example.com' },
-    amount: 64.0,
-    description: 'Tapas dinner',
-    category: 'food',
-    splits: [],
-    splitType: 'equal',
-    createdAt: '2024-06-26T20:00:00Z',
-    updatedAt: '2024-06-26T20:00:00Z',
-  },
-  {
-    _id: 'e5',
-    groupId: 'g1',
-    paidBy: { _id: 'user-4', name: 'Sara Lee', email: 'sara@example.com' },
-    amount: 120,
-    description: 'Museum tickets',
-    category: 'entertainment',
-    splits: [],
-    splitType: 'equal',
-    createdAt: '2024-06-25T11:00:00Z',
-    updatedAt: '2024-06-25T11:00:00Z',
-  },
-];
+  // 2. Fetch expenses for all groups
+  const expensesQueries = useQueries({
+    queries: groups.map((g) => ({
+      queryKey: groupKeys.expenses(g._id),
+      queryFn: () => expenseApi.listExpenses(g._id),
+      enabled: !!currentUserId && groups.length > 0,
+      staleTime: 15_000,
+    })),
+  });
 
-export const MOCK_ACTIVITY: ActivityItem[] = [
-  {
-    id: 'a1',
-    type: 'expense_added',
-    groupId: 'g1',
-    groupName: 'Barcelona Trip 🇪🇸',
-    actorName: 'Maria Garcia',
-    amount: 248.5,
-    description: 'Hotel booking — 2 nights',
-    timestamp: '2024-06-28T14:30:00Z',
-  },
-  {
-    id: 'a2',
-    type: 'settlement_completed',
-    groupId: 'g2',
-    groupName: 'Apartment Rent 🏠',
-    actorName: 'James Brown',
-    targetName: 'Alex Johnson',
-    amount: 600,
-    timestamp: '2024-06-28T11:00:00Z',
-  },
-  {
-    id: 'a3',
-    type: 'expense_added',
-    groupId: 'g3',
-    groupName: 'Office Lunch 🍕',
-    actorName: 'Alex Johnson',
-    amount: 87.4,
-    description: 'Team lunch at Chipotle',
-    timestamp: '2024-06-28T13:00:00Z',
-  },
-  {
-    id: 'a4',
-    type: 'member_joined',
-    groupId: 'g1',
-    groupName: 'Barcelona Trip 🇪🇸',
-    actorName: 'Sara Lee',
-    timestamp: '2024-06-24T09:15:00Z',
-  },
-  {
-    id: 'a5',
-    type: 'expense_updated',
-    groupId: 'g2',
-    groupName: 'Apartment Rent 🏠',
-    actorName: 'Alex Johnson',
-    amount: 1800,
-    description: 'Monthly rent — July',
-    timestamp: '2024-06-27T09:10:00Z',
-  },
-  {
-    id: 'a6',
-    type: 'settlement_completed',
-    groupId: 'g3',
-    groupName: 'Office Lunch 🍕',
-    actorName: 'Priya Patel',
-    targetName: 'Tom Wilson',
-    amount: 29.13,
-    timestamp: '2024-06-26T15:00:00Z',
-  },
-];
+  // 3. Fetch balances for all groups
+  const balancesQueries = useQueries({
+    queries: groups.map((g) => ({
+      queryKey: groupKeys.balances(g._id),
+      queryFn: () => balanceApi.getBalances(g._id),
+      enabled: !!currentUserId && groups.length > 0,
+      staleTime: 15_000,
+    })),
+  });
 
-export const MOCK_STATS: DashboardStats = {
-  totalOwed: 312.45,
-  totalReceivable: 680.20,
-  groupCount: 3,
-  expenseCount: 24,
-};
+  // 4. Fetch simplified debts for all groups to calculate user-to-user net balances
+  const simplifiedQueries = useQueries({
+    queries: groups.map((g) => ({
+      queryKey: ['groups', g._id, 'simplify'],
+      queryFn: () => balanceApi.getSimplifiedDebts(g._id),
+      enabled: !!currentUserId && groups.length > 0,
+      staleTime: 15_000,
+    })),
+  });
 
-export const MOCK_NET_BALANCES: NetBalance[] = [
-  { userId: 'user-2', name: 'Maria Garcia', balance: -248.5 },
-  { userId: 'user-3', name: 'Tom Wilson', balance: 124.25 },
-  { userId: 'user-4', name: 'Sara Lee', balance: -63.95 },
-  { userId: 'user-5', name: 'James Brown', balance: 200 },
-];
+  const isLoading =
+    groupsQuery.isLoading ||
+    expensesQueries.some((q) => q.isLoading) ||
+    balancesQueries.some((q) => q.isLoading) ||
+    simplifiedQueries.some((q) => q.isLoading);
 
-export const MOCK_SPENDING: SpendingCategory[] = [
-  { category: 'Travel', amount: 432.5, percentage: 42, color: '#6366f1' },
-  { category: 'Food', amount: 281.4, percentage: 27, color: '#8b5cf6' },
-  { category: 'Rent', amount: 1800, percentage: 20, color: '#22c55e' },
-  { category: 'Entertainment', amount: 120, percentage: 8, color: '#f59e0b' },
-  { category: 'Other', amount: 30, percentage: 3, color: '#6b7280' },
-];
+  const isError =
+    groupsQuery.isError ||
+    expensesQueries.some((q) => q.isError) ||
+    balancesQueries.some((q) => q.isError) ||
+    simplifiedQueries.some((q) => q.isError);
+
+  // ─── Computations ──────────────────────────────────────────────────────────
+  if (isLoading || isError || !currentUserId) {
+    return {
+      isLoading,
+      isError,
+      stats: { totalOwed: 0, totalReceivable: 0, groupCount: 0, expenseCount: 0 },
+      groups: [],
+      recentExpenses: [],
+      activity: [],
+      spending: [],
+      netBalances: [],
+      currentUser,
+    };
+  }
+
+  // A. Expense list across all groups
+  const allExpenses: (Expense & { groupName: string })[] = [];
+  expensesQueries.forEach((query, index) => {
+    if (query.data) {
+      const group = groups[index];
+      query.data.forEach((exp) => {
+        allExpenses.push({
+          ...exp,
+          groupName: group.name,
+        });
+      });
+    }
+  });
+
+  // Sort by date descending
+  allExpenses.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+  const recentExpenses = allExpenses.slice(0, 5);
+
+  // B. Net balances across all groups for current user
+  let totalOwed = 0;
+  let totalReceivable = 0;
+
+  balancesQueries.forEach((query) => {
+    if (query.data) {
+      const myBalanceItem = query.data.find((b) => b.userId === currentUserId);
+      if (myBalanceItem) {
+        if (myBalanceItem.balance < 0) {
+          totalOwed += Math.abs(myBalanceItem.balance);
+        } else if (myBalanceItem.balance > 0) {
+          totalReceivable += myBalanceItem.balance;
+        }
+      }
+    }
+  });
+
+  const stats: DashboardStats = {
+    totalOwed,
+    totalReceivable,
+    groupCount: groups.length,
+    expenseCount: allExpenses.length,
+  };
+
+  // C. Aggregated Net Balances per user (alex owes X, or X owes alex)
+  const balanceAggregator: Record<string, { name: string; avatarUrl?: string; balance: number }> = {};
+
+  simplifiedQueries.forEach((query, index) => {
+    if (query.data) {
+      const group = groups[index];
+      query.data.forEach((debt) => {
+        if (debt.from === currentUserId) {
+          // Current user owes 'debt.to'
+          const targetId = debt.to;
+          const targetMember = group.members.find((m) => m.userId._id === targetId);
+          const name = targetMember?.userId.name || 'Group Member';
+          const avatarUrl = targetMember?.userId.avatarUrl;
+
+          if (!balanceAggregator[targetId]) {
+            balanceAggregator[targetId] = { name, avatarUrl, balance: 0 };
+          }
+          balanceAggregator[targetId].balance -= debt.amount;
+        } else if (debt.to === currentUserId) {
+          // 'debt.from' owes current user
+          const targetId = debt.from;
+          const targetMember = group.members.find((m) => m.userId._id === targetId);
+          const name = targetMember?.userId.name || 'Group Member';
+          const avatarUrl = targetMember?.userId.avatarUrl;
+
+          if (!balanceAggregator[targetId]) {
+            balanceAggregator[targetId] = { name, avatarUrl, balance: 0 };
+          }
+          balanceAggregator[targetId].balance += debt.amount;
+        }
+      });
+    }
+  });
+
+  const netBalances: NetBalance[] = Object.entries(balanceAggregator)
+    .map(([userId, val]) => ({
+      userId,
+      name: val.name,
+      avatarUrl: val.avatarUrl,
+      balance: Math.round(val.balance * 100) / 100,
+    }))
+    .filter((b) => b.balance !== 0);
+
+  // D. Spending by Category for expenses paid by current user
+  const categoryTotals: Record<string, number> = {};
+  let totalUserSpent = 0;
+
+  allExpenses.forEach((exp) => {
+    if (exp.paidBy._id === currentUserId) {
+      const cat = exp.category || 'other';
+      categoryTotals[cat] = (categoryTotals[cat] || 0) + exp.amount;
+      totalUserSpent += exp.amount;
+    }
+  });
+
+  const categoryColors: Record<string, string> = {
+    food: '#8b5cf6',
+    transport: '#06b6d4',
+    entertainment: '#f59e0b',
+    shopping: '#ec4899',
+    utilities: '#3b82f6',
+    rent: '#22c55e',
+    travel: '#6366f1',
+    health: '#ef4444',
+    other: '#6b7280',
+  };
+
+  const spending: SpendingCategory[] = Object.entries(categoryTotals).map(([cat, amount]) => {
+    const formattedCategory = cat.charAt(0).toUpperCase() + cat.slice(1);
+    const percentage = totalUserSpent > 0 ? Math.round((amount / totalUserSpent) * 100) : 0;
+    return {
+      category: formattedCategory,
+      amount,
+      percentage,
+      color: categoryColors[cat] || '#6b7280',
+    };
+  });
+
+  // E. Dynamic Activity Feed
+  const activity: ActivityItem[] = [];
+
+  groups.forEach((g) => {
+    // Member join activities
+    g.members.forEach((m) => {
+      activity.push({
+        id: `act-join-${g._id}-${m.userId._id}`,
+        type: 'member_joined',
+        groupId: g._id,
+        groupName: g.name,
+        actorName: m.userId.name,
+        actorAvatar: m.userId.avatarUrl,
+        timestamp: g.createdAt,
+      });
+    });
+  });
+
+  allExpenses.forEach((exp) => {
+    activity.push({
+      id: `act-exp-${exp._id}`,
+      type: 'expense_added',
+      groupId: exp.groupId,
+      groupName: exp.groupName,
+      actorName: exp.paidBy.name,
+      actorAvatar: exp.paidBy.avatarUrl,
+      amount: exp.amount,
+      description: exp.description,
+      timestamp: exp.createdAt,
+    });
+  });
+
+  // Sort by timestamp descending
+  activity.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+  const recentActivity = activity.slice(0, 10);
+
+  return {
+    isLoading: false,
+    isError: false,
+    stats,
+    groups,
+    recentExpenses,
+    activity: recentActivity,
+    spending,
+    netBalances,
+    currentUser,
+  };
+}

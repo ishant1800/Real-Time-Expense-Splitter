@@ -3,6 +3,7 @@ import { cn } from '@/lib/utils';
 import { Avatar } from '@/components/ui/Avatar';
 import { useAuthStore } from '@/store/useAuthStore';
 import { useLogoutMutation } from '@/hooks/useAuthQueries';
+import { ToastContainer } from '@/components/ui/ToastContainer';
 
 const navItems = [
   { to: '/dashboard', icon: '🏠', label: 'Dashboard' },
@@ -118,6 +119,7 @@ export default function Layout() {
           <Outlet />
         </main>
       </div>
+      <ToastContainer />
     </div>
   );
 }

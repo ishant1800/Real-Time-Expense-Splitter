@@ -119,6 +119,25 @@ export class GroupService {
     return this.groupRepo.listByUserId(userId);
   }
 
+  /**
+   * Retrieve a group by ID and verify membership.
+   */
+  async getGroupById(groupId: string, userId: string): Promise<IGroupDocument> {
+    const group = await this.groupRepo.findById(groupId);
+    if (!group) {
+      throw new AppError('Group not found', 404);
+    }
+
+    const isMember = group.members.some(
+      (m) => m.userId._id.toString() === userId
+    );
+    if (!isMember) {
+      throw new AppError('Access denied: You are not a member of this group', 403);
+    }
+
+    return group;
+  }
+
   // ---------------------------------------------------------------------------
   // Private helpers
   // ---------------------------------------------------------------------------

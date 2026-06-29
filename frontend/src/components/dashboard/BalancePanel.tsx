@@ -5,9 +5,10 @@ import type { NetBalance } from '@/types';
 
 interface BalancePanelProps {
   balances: NetBalance[];
+  onSettle?: () => void;
 }
 
-export function BalancePanel({ balances }: BalancePanelProps) {
+export function BalancePanel({ balances, onSettle }: BalancePanelProps) {
   const owed = balances.filter(b => b.balance > 0);
   const owes = balances.filter(b => b.balance < 0);
 
@@ -54,7 +55,14 @@ export function BalancePanel({ balances }: BalancePanelProps) {
                 </div>
                 <div className="text-right">
                   <p className="text-sm font-bold text-danger">{formatCurrency(b.balance)}</p>
-                  <button className="text-xs text-accent-light hover:underline mt-0.5">Settle up</button>
+                  {onSettle && (
+                    <button
+                      onClick={onSettle}
+                      className="text-xs text-accent-light hover:underline mt-0.5"
+                    >
+                      Settle up
+                    </button>
+                  )}
                 </div>
               </div>
             ))}

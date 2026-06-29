@@ -22,7 +22,7 @@ export interface CreateExpensePayload {
 export interface UpdateExpensePayload extends Partial<CreateExpensePayload> {}
 
 export interface ApiResponse<T> {
-  success: boolean;
+  status: 'success' | 'error';
   data: T;
   message?: string;
 }
@@ -32,26 +32,26 @@ export interface ApiResponse<T> {
 export const groupApi = {
   /** GET /groups/:id */
   getGroup: async (groupId: string): Promise<Group> => {
-    const res = await api.get<ApiResponse<Group>>(`/groups/${groupId}`);
-    return res.data.data;
+    const res = await api.get<ApiResponse<{ group: Group }>>(`/groups/${groupId}`);
+    return res.data.data.group;
   },
 
   /** GET /groups — list user's groups */
   listGroups: async (): Promise<Group[]> => {
-    const res = await api.get<ApiResponse<Group[]>>('/groups');
-    return res.data.data;
+    const res = await api.get<ApiResponse<{ groups: Group[] }>>('/groups');
+    return res.data.data.groups;
   },
 
   /** POST /groups */
   createGroup: async (name: string): Promise<Group> => {
-    const res = await api.post<ApiResponse<Group>>('/groups', { name });
-    return res.data.data;
+    const res = await api.post<ApiResponse<{ group: Group }>>('/groups', { name });
+    return res.data.data.group;
   },
 
-  /** PATCH /groups/:id/rename */
+  /** PATCH /groups/:id */
   renameGroup: async (groupId: string, name: string): Promise<Group> => {
-    const res = await api.patch<ApiResponse<Group>>(`/groups/${groupId}/rename`, { name });
-    return res.data.data;
+    const res = await api.patch<ApiResponse<{ group: Group }>>(`/groups/${groupId}`, { name });
+    return res.data.data.group;
   },
 
   /** DELETE /groups/:id */
@@ -61,8 +61,8 @@ export const groupApi = {
 
   /** POST /groups/join */
   joinGroup: async (inviteCode: string): Promise<Group> => {
-    const res = await api.post<ApiResponse<Group>>('/groups/join', { inviteCode });
-    return res.data.data;
+    const res = await api.post<ApiResponse<{ group: Group }>>('/groups/join', { inviteCode });
+    return res.data.data.group;
   },
 
   /** DELETE /groups/:id/members/:userId */
@@ -74,22 +74,22 @@ export const groupApi = {
 // ─── Expense API ──────────────────────────────────────────────────────────────
 
 export const expenseApi = {
-  /** GET /expenses?groupId=... */
+  /** GET /expenses/group/:groupId */
   listExpenses: async (groupId: string): Promise<Expense[]> => {
-    const res = await api.get<ApiResponse<Expense[]>>(`/expenses?groupId=${groupId}`);
-    return res.data.data;
+    const res = await api.get<ApiResponse<{ expenses: Expense[] }>>(`/expenses/group/${groupId}`);
+    return res.data.data.expenses;
   },
 
   /** POST /expenses */
   createExpense: async (payload: CreateExpensePayload): Promise<Expense> => {
-    const res = await api.post<ApiResponse<Expense>>('/expenses', payload);
-    return res.data.data;
+    const res = await api.post<ApiResponse<{ expense: Expense }>>('/expenses', payload);
+    return res.data.data.expense;
   },
 
-  /** PATCH /expenses/:id */
+  /** PUT /expenses/:id */
   updateExpense: async (expenseId: string, payload: UpdateExpensePayload): Promise<Expense> => {
-    const res = await api.patch<ApiResponse<Expense>>(`/expenses/${expenseId}`, payload);
-    return res.data.data;
+    const res = await api.put<ApiResponse<{ expense: Expense }>>(`/expenses/${expenseId}`, payload);
+    return res.data.data.expense;
   },
 
   /** DELETE /expenses/:id */
@@ -103,14 +103,19 @@ export const expenseApi = {
 export const balanceApi = {
   /** GET /groups/:id/balances */
   getBalances: async (groupId: string): Promise<NetBalance[]> => {
-    const res = await api.get<ApiResponse<NetBalance[]>>(`/groups/${groupId}/balances`);
-    return res.data.data;
+    const res = await api.get<ApiResponse<{ balances: any[] }>>(`/groups/${groupId}/balances`);
+    return res.data.data.balances.map((b) => ({
+      userId: b.userId,
+      name: b.user?.name || '',
+      avatarUrl: b.user?.avatar,
+      balance: b.netBalance,
+    }));
   },
 
   /** GET /groups/:id/settlements */
   listSettlements: async (groupId: string): Promise<Settlement[]> => {
-    const res = await api.get<ApiResponse<Settlement[]>>(`/groups/${groupId}/settlements`);
-    return res.data.data;
+    const res = await api.get<ApiResponse<{ settlements: Settlement[] }>>(`/groups/${groupId}/settlements`);
+    return res.data.data.settlements;
   },
 
   /** POST /groups/:id/settlements */
@@ -118,16 +123,18 @@ export const balanceApi = {
     groupId: string,
     payload: { from: string; to: string; amount: number },
   ): Promise<Settlement> => {
-    const res = await api.post<ApiResponse<Settlement>>(
+    const res = await api.post<ApiResponse<{ settlement: Settlement; balances: NetBalance[] }>>(
       `/groups/${groupId}/settlements`,
       payload,
     );
-    return res.data.data;
+    return res.data.data.settlement;
   },
 
-  /** GET /groups/:id/simplify */
+  /** GET /groups/:id/settlement-path */
   getSimplifiedDebts: async (groupId: string): Promise<SimplifiedDebt[]> => {
-    const res = await api.get<ApiResponse<SimplifiedDebt[]>>(`/groups/${groupId}/simplify`);
-    return res.data.data;
+    const res = await api.get<ApiResponse<{ transactions: SimplifiedDebt[] }>>(
+      `/groups/${groupId}/settlement-path`,
+    );
+    return res.data.data.transactions;
   },
 };
