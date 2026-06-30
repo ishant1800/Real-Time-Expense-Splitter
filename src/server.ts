@@ -15,7 +15,7 @@ const startServer = async () => {
     // Connect to MongoDB before accepting HTTP traffic
     await connectDB();
 
-    server.listen(env.PORT, () => {
+    server.listen(env.PORT, '0.0.0.0', () => {
       logger.info(`Server is running on port ${env.PORT} in ${env.NODE_ENV} mode`);
     });
   } catch (error) {
